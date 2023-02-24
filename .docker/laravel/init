@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# TODO: Vite builds when script is run...need to fix
+# TODO: Test whether or not .env files actually need to be renamed and/or removed
+
+# Prompt user for the name of their Laravel project and save it to a variable
+read -p "What is the name of your Laravel project? " project_name
+
+# Create a new Laravel project in a temporary directory
+composer create-project laravel/laravel tmp
+
+# Rename tmp/.env and move the contents of the temporary directory into the current directory
+mv tmp/.env tmp/.env.laravel &&
+  rm tmp/.env.example &&
+  mv tmp/* . &&
+  mv tmp/.* &&
+  rm -rf tmp
+
+# Set the .env variable APP_NAME to the name provided by the user
+sed -i "s/APP_NAME=Laravel/APP_NAME=${project_name}/g" .env
+sed -i "s/DB_DATABASE=Laravel/DB_DATABASE=${project_name}/g" .env
+
+# Install composer dependencies
+composer install -d "/var/www"
+
+# Prompt user if they want to install Laravel Breeze
+read -p "Do you want to install Laravel Breeze? [y/N]: " -r
+
+# If the user wants to install Laravel Breeze, ask if they want React or Vue, then install it
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  read -p "Do you want to install Laravel Breeze with React or Vue? [r/v]: " -r
+  if [[ $REPLY =~ ^[Rr]$ ]]; then
+    composer require laravel/breeze --dev &&
+      php artisan breeze:install react
+  elif [[ $REPLY =~ ^[Vv]$ ]]; then
+    composer require laravel/breeze --dev &&
+      php artisan breeze:install vue
+  fi
+fi
+
+# Install npm dependencies with pnpm
+pnpm install
+
+# Generate application key
+php "/var/www/artisan" key:generate --ansi
+
+# Run database migrations
+php "/var/www/artisan" migrate
+
+# Inform the user that the project has been initialised and remind them to double check their .env file
+echo "Your project has been initialised. Please double check your .env file to make sure everything is correct!"
